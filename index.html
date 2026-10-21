@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка аудио</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: #0b0920; color: #eee; font: 16px system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  section { margin: 0 0 16px; padding: 12px; border: 1px solid #333; border-radius: 12px; }
+  label { display: block; margin: 6px 0; }
+  button { margin: 4px 4px 4px 0; padding: 10px 14px; border: 0; border-radius: 10px; background: #6d5cff; color: #fff; font: inherit; }
+  button.secondary { background: #2a2740; }
+  audio { width: 100%; margin-top: 8px; }
+  #log { white-space: pre-wrap; font: 13px ui-monospace, monospace; color: #bbb; max-height: 50vh; overflow: auto; }
+  .ok { color: #3ddc97; } .bad { color: #ff6b6b; }
+</style>
+</head>
+<body>
+<h1>Проверка аудио для Zubrilka</h1>
+
+<section>
+  <b>Откуда играть</b>
+  <label><input type="radio" name="src" value="pages" checked> GitHub Pages — тот же сайт, что приложение</label>
+  <label><input type="radio" name="src" value="raw"> raw.githubusercontent.com — сырая ссылка</label>
+  <div id="url"></div>
+</section>
+
+<section>
+  <button id="play">▶ Играть</button>
+  <button class="secondary" id="back">−15 с</button>
+  <button class="secondary" id="fwd">+15 с</button>
+  <button class="secondary" id="speed">Скорость 1×</button>
+  <audio id="audio" controls preload="metadata"></audio>
+</section>
+
+<section>
+  <b>Без сети</b><br>
+  <button id="download">Скачать на телефон</button>
+  <button class="secondary" id="remove">Удалить с телефона</button>
+  <div id="cache"></div>
+</section>
+
+<section>
+  <b>Журнал</b> <button class="secondary" id="clear">Очистить</button>
+  <div id="log"></div>
+</section>
+
+<script>
+const FILE = "test.mp3";
+const SOURCES = {
+  pages: new URL(FILE, location.href).href,
+  raw: `https://raw.githubusercontent.com/color-zebra/frontend-quiz-audio/main/${FILE}`,
+};
+const CACHE = "audio-check";
+const audio = document.getElementById("audio");
+const logBox = document.getElementById("log");
+const speeds = [1, 1.25, 1.5, 2];
+
+function log(text, cls = "") {
+  const time = new Date().toLocaleTimeString("ru");
+  logBox.insertAdjacentHTML("afterbegin", `<div class="${cls}">${time} ${text}</div>`);
+}
+function source() {
+  return SOURCES[document.querySelector("input[name=src]:checked").value];
+}
+function showSource() {
+  document.getElementById("url").textContent = source();
+  audio.src = source();
+}
+document.querySelectorAll("input[name=src]").forEach((r) => r.addEventListener("change", showSource));
+showSource();
+
+// Кнопки на экране блокировки и в шторке.
+function setupMediaSession() {
+  if (!("mediaSession" in navigator)) return log("Media Session не поддерживается", "bad");
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: "Тестовый урок",
+    artist: "Проверка аудио",
+    artwork: [{ src: "https://color-zebra.github.io/frontend-quiz/icons/icon-512.png", sizes: "512x512", type: "image/png" }],
+  });
+  const set = (action, fn) => { try { navigator.mediaSession.setActionHandler(action, fn); } catch { log(`нет действия ${action}`, "bad"); } };
+  set("play", () => audio.play());
+  set("pause", () => audio.pause());
+  set("seekbackward", () => (audio.currentTime = Math.max(0, audio.currentTime - 15)));
+  set("seekforward", () => (audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 15)));
+  set("seekto", (d) => (audio.currentTime = d.seekTime));
+}
+function updatePosition() {
+  if (!("mediaSession" in navigator) || !audio.duration) return;
+  try { navigator.mediaSession.setPositionState({ duration: audio.duration, position: audio.currentTime, playbackRate: audio.playbackRate }); } catch {}
+}
+
+document.getElementById("play").onclick = () => { setupMediaSession(); audio.play().catch((e) => log(`не играет: ${e.message}`, "bad")); };
+document.getElementById("back").onclick = () => (audio.currentTime = Math.max(0, audio.currentTime - 15));
+document.getElementById("fwd").onclick = () => (audio.currentTime += 15);
+document.getElementById("speed").onclick = (e) => {
+  audio.playbackRate = speeds[(speeds.indexOf(audio.playbackRate) + 1) % speeds.length];
+  e.target.textContent = `Скорость ${audio.playbackRate}×`;
+};
+
+// Что происходит при выключенном экране: время в журнале показывает, играло ли в фоне.
+let lastTick = 0;
+audio.addEventListener("play", () => log("играет", "ok"));
+audio.addEventListener("pause", () => log(`пауза на ${audio.currentTime.toFixed(1)} с`));
+audio.addEventListener("ended", () => log("дослушано до конца", "ok"));
+audio.addEventListener("error", () => log(`ошибка плеера: ${audio.error?.message || audio.error?.code}`, "bad"));
+audio.addEventListener("loadedmetadata", () => { log(`длина ${audio.duration.toFixed(1)} с`); updatePosition(); });
+audio.addEventListener("seeked", () => { log(`перемотано на ${audio.currentTime.toFixed(1)} с`); updatePosition(); });
+audio.addEventListener("ratechange", updatePosition);
+audio.addEventListener("timeupdate", () => {
+  if (document.hidden && audio.currentTime - lastTick >= 30) {
+    lastTick = audio.currentTime;
+    log(`в фоне, позиция ${audio.currentTime.toFixed(0)} с`, "ok");
+  }
+});
+document.addEventListener("visibilitychange", () => log(document.hidden ? "экран скрыт" : `экран снова виден, позиция ${audio.currentTime.toFixed(0)} с`));
+
+// Скачать целиком и играть с телефона: Service Worker отдаёт файл из кэша кусками.
+async function showCache() {
+  const cache = await caches.open(CACHE);
+  const keys = await cache.keys();
+  let size = 0;
+  for (const req of keys) size += (await (await cache.match(req)).blob()).size;
+  const est = navigator.storage?.estimate ? await navigator.storage.estimate() : null;
+  const persisted = navigator.storage?.persisted ? await navigator.storage.persisted() : null;
+  document.getElementById("cache").textContent =
+    `на телефоне: ${keys.length} файл(ов), ${(size / 1048576).toFixed(1)} МБ` +
+    (est ? ` · сайт занимает ${(est.usage / 1048576).toFixed(1)} МБ из ${(est.quota / 1048576).toFixed(0)} МБ` : "") +
+    ` · Service Worker: ${navigator.serviceWorker?.controller ? "управляет страницей" : "ещё нет (перезагрузи)"}` +
+    ` · постоянное хранилище: ${persisted}`;
+}
+document.getElementById("download").onclick = async () => {
+  const url = source();
+  try {
+    const response = await fetch(url, { mode: "cors", cache: "no-store" });
+    log(`скачивание: ${response.status}, тип ${response.headers.get("content-type")}, размер ${response.headers.get("content-length")}`);
+    if (!response.ok) throw new Error(`статус ${response.status}`);
+    await (await caches.open(CACHE)).put(url, response);
+    navigator.storage?.persist?.();
+    log("сохранено на телефон", "ok");
+  } catch (e) {
+    log(`не скачалось: ${e.message}`, "bad");
+  }
+  showCache();
+};
+document.getElementById("remove").onclick = async () => {
+  await caches.delete(CACHE);
+  log("удалено с телефона");
+  showCache();
+};
+document.getElementById("clear").onclick = () => (logBox.innerHTML = "");
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").then(() => log("Service Worker зарегистрирован"));
+  navigator.serviceWorker.addEventListener("message", (e) => log(e.data, "ok"));
+}
+showCache();
+log("страница открыта");
+</script>
+</body>
+</html>
