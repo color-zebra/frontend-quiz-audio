@@ -48,10 +48,21 @@ python -m venv .venv
 .venv/Scripts/python -m pip install -r tools/requirements.txt
 ```
 
+Текст для озвучки из чистого текста урока — подстановка словаря Светланы:
+
+```
+python tools/derive.py system-design-basics/sdb-api.clean.txt
+```
+
+Пишет рядом `sdb-api.txt` и печатает, что проверить глазами: оставшуюся латиницу, омографы и формы, которые голос
+читает неверно («стоит», «поля», «адреса» во множественном числе, «поднял»), единицы цифрами, числа от четырёх цифр,
+вопросительные знаки. Синонимы, пересказ кода и таблиц, числа словами правят в самом `.clean.txt` и запускают снова.
+Новое слово в `dictionary-svetlana.md`, которое можно подставлять механически, — новая строка в `REPLACE`.
+
 Сборка урока:
 
 ```
-.venv/Scripts/python tools/build.py system-design-basics/sdb-intro-2.txt
+.venv/Scripts/python tools/build.py system-design-basics/sdb-api.txt
 ```
 
 - **Вход** — текст для озвучки: разделы урока через строку `=== раздел ===`.
