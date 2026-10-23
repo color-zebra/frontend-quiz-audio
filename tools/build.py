@@ -107,7 +107,8 @@ async def main(text_file):
                    check=True)
 
     loud = subprocess.run([FFMPEG, "-hide_banner", "-nostats", "-i", str(out), "-af", "ebur128=peak=true:framelog=quiet",
-                           "-f", "null", "-"], capture_output=True, text=True).stderr
+                           "-f", "null", "-"], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace").stderr  # ffmpeg пишет название урока в UTF-8, не в cp1251
     level = re.search(r"I:\s+(-?[\d.]+) LUFS", loud)
     peak = re.search(r"Peak:\s+(-?[\d.]+) dBFS", loud)
     minutes, seconds = divmod(round(duration(out)), 60)
