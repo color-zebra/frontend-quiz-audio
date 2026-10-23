@@ -129,6 +129,10 @@ def main(clean_file):
     print("латиница — сверить со словарём:", ", ".join(latin) or "нет")
     for m in RISKY.finditer(text):
         print(f"  проверить «{m.group(0)}»: …{text[max(0, m.start() - 35):m.end() + 25]}…".replace("\n", " "))
+    # все числа — словами (автор, 2026-10-23): цифрами голос сам выбирает падеж и ошибается
+    # («после одних секунды», «с тридцати фото»)
+    for m in re.finditer(r"\d[\d\s,.:–%-]*", text):
+        print(f"  число цифрами «{m.group(0).strip()}»: …{text[max(0, m.start() - 35):m.end() + 25]}…".replace("\n", " "))
     questions = text.count("?")
     if questions:
         print(f"  вопросительных знаков: {questions} — вопрос с ответом на слух не различить, оставлять только в цитатах")
