@@ -26,6 +26,9 @@ SECTION_MARK = "=== раздел ==="
 PAUSE_BETWEEN_SECTIONS = 0.2  # с; Светлана сама оставляет ~0,6 с тишины по краям, на стыке выходит ~1,4 с
 REQUEST_PAUSE = 5  # с между запросами
 MIN_CHARS_PER_SECOND = 20  # быстрее — значит, звук оборвался (Светлана читает ~14 знаков в секунду)
+# Сервис иногда молча не отвечает, и запрос висит часами (2026-10-23 — почти час): свой предел на раздел целиком
+SECTION_TIMEOUT_BASE = 120  # с
+SECTION_TIMEOUT_PER_CHAR = 0.1  # с на знак: раздел в 1600 знаков — до ~4,5 минуты
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
@@ -46,10 +49,13 @@ def duration(path):
 
 
 async def synthesize(text, path):
-    """Один раздел; до трёх попыток с нарастающей паузой, если запрос упал или звук оборвался."""
+    """Один раздел; до трёх попыток с нарастающей паузой, если запрос упал, завис или звук оборвался."""
+    timeout = SECTION_TIMEOUT_BASE + SECTION_TIMEOUT_PER_CHAR * len(text)
     for attempt in range(1, 4):
         try:
-            await edge_tts.Communicate(text, VOICE).save(str(path))
+            await asyncio.wait_for(edge_tts.Communicate(text, VOICE).save(str(path)), timeout)
+        except asyncio.TimeoutError:
+            print(f"    завис: нет ответа за {timeout:.0f} с")
         except Exception as error:
             print(f"    ошибка: {type(error).__name__}")
         if path.exists() and duration(path) > len(text) / MIN_CHARS_PER_SECOND:
@@ -112,4 +118,5 @@ async def main(text_file):
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         sys.exit("Использование: python tools/build.py <курс>/<имя>.txt")
+    sys.stdout.reconfigure(line_buffering=True)  # строки сразу в журнал — иначе зависание видно только в конце урока
     asyncio.run(main(sys.argv[1]))
