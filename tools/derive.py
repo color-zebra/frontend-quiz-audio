@@ -45,7 +45,7 @@ REPLACE = [
     (r"\buseState\b", "юз-стейт"), (r"\buseEffect\b", "юз-эффект"), (r"\buseMemo\b", "юз-мемо"),
     (r"\buseReducer\b", "юз-редьюсер"),
     (r"\bWAI-ARIA\b", "вай-ария"), (r"\bW3C\b", "дабл-ю-три-си"), (r"Shift\+Tab", "шифт-таб"), (r"\bTab\b", "таб"),
-    (r"\blocalStorage\b", "локал-сторэдж"), (r"\bsessionStorage\b", "сешн-сторэдж"),
+    (r"\blocalStorage\b", "локал-сторэдж"), (r"\bsessionStorage\b", "сэшн-сторэдж"),
     (r"TanStack Query", "тан-стэк квэри"), (r"RTK Query", "эр-ти-кей квэри"),
     (r"\bpushState\b", "пуш-стейт"), (r"\breplaceState\b", "риплэйс-стейт"), (r"\bpopstate\b", "поп-стейт"),
     (r"\bbeforeunload\b", "бифор-анлоуд"), (r"\bunload\b", "анлоуд"), (r"\bvisibilitychange\b", "визибилити-чейндж"),
